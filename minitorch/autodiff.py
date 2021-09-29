@@ -235,8 +235,16 @@ class FunctionBase:
             (see `is_constant` to remove unneeded variables)
 
         """
-        # TODO: Implement for Task 1.3.
-        raise NotImplementedError('Need to implement for Task 1.3')
+        
+        output = []
+        for var_i, var in enumerate(inputs):
+            if is_constant(var):
+                continue
+            if type(cls.backward(ctx, d_output)) == float:
+                output.append(tuple((var, cls.backward(ctx, d_output))))
+            else:
+                output.append(tuple((var, cls.backward(ctx, d_output)[var_i])))
+        return output
 
 
 def is_constant(val):
@@ -275,5 +283,24 @@ def backpropagate(variable, deriv):
 
     No return. Should write to its results to the derivative values of each leaf.
     """
-    # TODO: Implement for Task 1.4.
-    raise NotImplementedError('Need to implement for Task 1.4')
+    top_sort = topological_sort(variable)
+    var_deriv_dict = {} #variable_input.unique_id: deriv for variable_input in variable.history.inputs if not is_constant(variable_input)} #assumes no double arrows
+    for var in top_sort:
+        if is_constant(var):
+            continue
+        d_out = var_deriv_dict[var.unique_id] if var.unique_id != variable.unique_id else deriv # should exist
+        if var.is_leaf():
+            var.accumulate_derivative(d_out)
+        else:
+            d_outs = var.history.backprop_step(d_out)
+            inputs = var.history.inputs
+            douts_idx = 0
+            for input in inputs:
+                if is_constant(input):
+                    continue
+                if input.unique_id in var_deriv_dict:
+                    var_deriv_dict[input.unique_id] += d_outs[douts_idx][1]     
+                else:
+                    var_deriv_dict[input.unique_id] = d_outs[douts_idx][1]
+                douts_idx += 1
+                
